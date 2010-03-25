@@ -1,3 +1,4 @@
+// This software is released into the Public Domain.  See copying.txt for details.
 package data.util;
 
 import java.io.BufferedInputStream;
@@ -11,7 +12,7 @@ import java.util.zip.GZIPOutputStream;
 
 import org.junit.Assert;
 
-import com.bretth.osmosis.core.OsmosisRuntimeException;
+import org.openstreetmap.osmosis.core.OsmosisRuntimeException;
 
 
 /**
@@ -40,6 +41,35 @@ public class DataFileUtilities {
 		file = new File(url.getFile().replaceAll("%20", " "));
 		
 		return file;
+	}
+
+
+	/**
+	 * Obtains the data file with the specified name. The name is a path relative to the data input
+	 * directory.
+	 * 
+	 * @param systemPropertyName
+	 *            The system property to use for getting the file name. If this doesn't exist, the
+	 *            dataFileName is used instead.
+	 * @param dataFileName
+	 *            The name of the data file to be loaded.
+	 * @return The file object pointing to the data file.
+	 */
+	public File getDataFile(String systemPropertyName, String dataFileName) {
+		String fileName;
+		
+		// Get the filename from the system property if it exists.
+		fileName = System.getProperty(systemPropertyName);
+
+		if (fileName != null) {
+			// Maven environment variable passing hack
+			if (!(fileName.startsWith("${"))) {
+				return new File(fileName);
+			}
+		}
+		
+		// No system property is available so use the provided file name.
+		return getDataFile(dataFileName);
 	}
 	
 	
@@ -92,7 +122,7 @@ public class DataFileUtilities {
 	public void compressFile(File inputFile, File outputFile) throws IOException {
 		BufferedInputStream inStream;
 		BufferedOutputStream outStream;
-		byte buffer[];
+		byte[] buffer;
 		int bytesRead;
 		
 		inStream = new BufferedInputStream(new FileInputStream(inputFile));
@@ -109,5 +139,53 @@ public class DataFileUtilities {
 		
 		outStream.close();
 		inStream.close();
+	}
+	
+	
+	/**
+	 * Creates a temporary directory.
+	 * 
+	 * @return The created directory.
+	 * @throws IOException
+	 *             if an IO exception occurs.
+	 */
+	public File createTempDirectory() throws IOException {
+		File tmpDir;
+		
+		tmpDir = File.createTempFile("test", null);
+		tmpDir.delete();
+		
+		tmpDir = new File(tmpDir.getAbsolutePath() + File.separator);
+		if (!tmpDir.mkdir()) {
+			throw new OsmosisRuntimeException("Unable to create directory " + tmpDir + ".");
+		}
+		
+		return tmpDir;
+	}
+	
+	
+	/**
+	 * Deletes a temporary directory and its contents.
+	 * 
+	 * @param tmpDir
+	 *            The directory to be deleted.
+	 */
+	public void deleteTempDirectory(File tmpDir) {
+		File[] files;
+		
+		// Delete all files in the directory.
+		files = tmpDir.listFiles();
+		for (int i = 0; i < files.length; i++) {
+			if (files[i].isDirectory()) {
+				deleteTempDirectory(files[i]);
+			} else if (!files[i].delete()) {
+				throw new OsmosisRuntimeException("Unable to delete file " + files[i] + ".");
+			}
+		}
+		
+		// Delete the directory itself.
+		if (!tmpDir.delete()) {
+			throw new OsmosisRuntimeException("Unable to delete directory " + tmpDir + ".");
+		}
 	}
 }
